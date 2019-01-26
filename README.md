@@ -11,9 +11,11 @@ The image of cat was taken from book SDL Game Development of Shaun Ross Mitchell
 
 ## Build
 
-  cmake ./
-  make
-  
+```
+cmake ./
+make
+```
+
 ## SDL 2.0.8 Patch note
 
 SDL has no function to reset shape assigned to window, when a shape is changed its value
