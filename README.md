@@ -7,7 +7,7 @@ The image of cat was taken from book SDL Game Development of Shaun Ross Mitchell
 ## Requirements
 
 * SDL2 2.0.8
-* SDL2 2.0.2 image extentions
+* SDL2_image 2.0.2 extention
 
 ## Build
 
