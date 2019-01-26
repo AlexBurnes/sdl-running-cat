@@ -1,0 +1,102 @@
+diff -Nur ./src.orig/dynapi/SDL_dynapi_overrides.h ./src/dynapi/SDL_dynapi_overrides.h
+--- ./src.orig/dynapi/SDL_dynapi_overrides.h	2019-01-26 21:47:20.082208404 +0800
++++ ./src/dynapi/SDL_dynapi_overrides.h	2019-01-26 17:34:37.410419143 +0800
+@@ -370,6 +370,7 @@
+ #define SDL_CreateShapedWindow SDL_CreateShapedWindow_REAL
+ #define SDL_IsShapedWindow SDL_IsShapedWindow_REAL
+ #define SDL_SetWindowShape SDL_SetWindowShape_REAL
++#define SDL_ResetWindowShape SDL_ResetWindowShape_REAL
+ #define SDL_GetShapedWindowMode SDL_GetShapedWindowMode_REAL
+ #define SDL_malloc SDL_malloc_REAL
+ #define SDL_calloc SDL_calloc_REAL
+diff -Nur ./src.orig/dynapi/SDL_dynapi_procs.h ./src/dynapi/SDL_dynapi_procs.h
+--- ./src.orig/dynapi/SDL_dynapi_procs.h	2019-01-26 21:47:20.082208404 +0800
++++ ./src/dynapi/SDL_dynapi_procs.h	2019-01-26 17:34:21.738167213 +0800
+@@ -401,6 +401,7 @@
+ SDL_DYNAPI_PROC(SDL_Window*,SDL_CreateShapedWindow,(const char *a, unsigned int b, unsigned int c, unsigned int d, unsigned int e, Uint32 f),(a,b,c,d,e,f),return)
+ SDL_DYNAPI_PROC(SDL_bool,SDL_IsShapedWindow,(const SDL_Window *a),(a),return)
+ SDL_DYNAPI_PROC(int,SDL_SetWindowShape,(SDL_Window *a, SDL_Surface *b, SDL_WindowShapeMode *c),(a,b,c),return)
++SDL_DYNAPI_PROC(int,SDL_ResetWindowShape,(SDL_Window *a),(a),return)
+ SDL_DYNAPI_PROC(int,SDL_GetShapedWindowMode,(SDL_Window *a, SDL_WindowShapeMode *b),(a,b),return)
+ SDL_DYNAPI_PROC(void*,SDL_malloc,(size_t a),(a),return)
+ SDL_DYNAPI_PROC(void*,SDL_calloc,(size_t a, size_t b),(a,b),return)
+diff -Nur ./src.orig/video/SDL_shape.c ./src/video/SDL_shape.c
+--- ./src.orig/video/SDL_shape.c	2019-01-26 21:47:20.162209792 +0800
++++ ./src/video/SDL_shape.c	2019-01-26 16:36:28.223765642 +0800
+@@ -278,6 +278,17 @@
+     return result;
+ }
+ 
++int
++SDL_ResetWindowShape(SDL_Window *window)
++{
++    int result;
++    if(window == NULL || !SDL_IsShapedWindow(window))
++        /* The window given was not a shapeable window. */
++        return SDL_NONSHAPEABLE_WINDOW;
++    result = SDL_GetVideoDevice()->shape_driver.ResetWindowShape(window->shaper);
++    return result;
++}
++
+ static SDL_bool
+ SDL_WindowHasAShape(SDL_Window *window)
+ {
+diff -Nur ./src.orig/video/SDL_sysvideo.h ./src/video/SDL_sysvideo.h
+--- ./src.orig/video/SDL_sysvideo.h	2019-01-26 21:47:20.162209792 +0800
++++ ./src/video/SDL_sysvideo.h	2019-01-26 16:28:23.192599496 +0800
+@@ -60,6 +60,7 @@
+     SDL_WindowShaper *(*CreateShaper)(SDL_Window * window);
+     int (*SetWindowShape)(SDL_WindowShaper *shaper,SDL_Surface *shape,SDL_WindowShapeMode *shape_mode);
+     int (*ResizeWindowShape)(SDL_Window *window);
++    int (*ResetWindowShape)(SDL_WindowShaper *shaper);
+ };
+ 
+ typedef struct SDL_WindowUserData
+diff -Nur ./src.orig/video/x11/SDL_x11shape.c ./src/video/x11/SDL_x11shape.c
+--- ./src.orig/video/x11/SDL_x11shape.c	2019-01-26 21:47:20.186210209 +0800
++++ ./src/video/x11/SDL_x11shape.c	2019-01-26 16:27:31.103665248 +0800
+@@ -81,6 +81,23 @@
+     return 0;
+ }
+ 
++int X11_ResetWindowShape(SDL_WindowShaper *shaper) {
++    SDL_ShapeData *data = NULL;
++   
++    if(shaper == NULL || shaper->driverdata == NULL)
++        return -1;
++
++#if SDL_VIDEO_DRIVER_X11_XSHAPE
++    data = shaper->driverdata;
++
++    if(data->bitmap == NULL) {
++        return -2;
++    }
++    memset(data->bitmap,0,data->bitmapsize);
++    return 0;
++#endif
++}
++
+ int
+ X11_SetWindowShape(SDL_WindowShaper *shaper,SDL_Surface *shape,SDL_WindowShapeMode *shape_mode) {
+     SDL_ShapeData *data = NULL;
+diff -Nur ./src.orig/video/x11/SDL_x11shape.h ./src/video/x11/SDL_x11shape.h
+--- ./src.orig/video/x11/SDL_x11shape.h	2019-01-26 21:47:20.186210209 +0800
++++ ./src/video/x11/SDL_x11shape.h	2019-01-26 16:25:36.957612585 +0800
+@@ -35,5 +35,6 @@
+ extern SDL_WindowShaper* X11_CreateShaper(SDL_Window* window);
+ extern int X11_ResizeWindowShape(SDL_Window* window);
+ extern int X11_SetWindowShape(SDL_WindowShaper *shaper,SDL_Surface *shape,SDL_WindowShapeMode *shapeMode);
++extern int X11_ResetWindowShape(SDL_WindowShaper *shaper);
+ 
+ #endif /* SDL_x11shape_h_ */
+diff -Nur ./src.orig/video/x11/SDL_x11video.c ./src/video/x11/SDL_x11video.c
+--- ./src.orig/video/x11/SDL_x11video.c	2019-01-26 21:47:20.190210278 +0800
++++ ./src/video/x11/SDL_x11video.c	2019-01-26 16:24:55.432863757 +0800
+@@ -263,6 +263,7 @@
+ 
+     device->shape_driver.CreateShaper = X11_CreateShaper;
+     device->shape_driver.SetWindowShape = X11_SetWindowShape;
++    device->shape_driver.ResetWindowShape = X11_ResetWindowShape;
+     device->shape_driver.ResizeWindowShape = X11_ResizeWindowShape;
+ 
+ #if SDL_VIDEO_OPENGL_GLX
