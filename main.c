@@ -205,14 +205,23 @@ int main(int argc, char* argv[]) {
     while (loop) {
         if (SDL_PollEvent(&event) or SDL_WaitEventTimeout(&event, gl_delay/2)) {
             switch (event.type) {
+
                 case SDL_QUIT:
                     loop = 0;
                         break;
+
                 case SDL_KEYDOWN:
                     if (event.key.keysym.sym == SDLK_ESCAPE) {
                         loop = 0;
                     }
                     break;
+
+                case SDL_MOUSEBUTTONDOWN:
+                    if (event.button.button == SDL_BUTTON_RIGHT) {
+                        loop = 0;
+                    }
+                    break;
+
             }
         }
         if (SDL_TICKS_PASSED(SDL_GetTicks(), timeout)) {
